@@ -1,58 +1,26 @@
 const router = require("express").Router();
-const User = require("../models/User");
-const bcrypt = require("bcrypt");
-const jwt = require('jsonwebtoken')
+const userCtrl = require('../controllers/userCtrl.js');
+const auth = require('../middleware/auth.js');
 
-//REGISTER
-router.post("/register", async (req, res) => {
-  const {username, password, email} = req.body;
+router.post('/register', userCtrl.register);
 
-  if(!username || !password || !email) {
-    return res.status(400).json({success: false, message: 'missing username, password, email!'});
-  }
-  try {
-    const emailVld = await User.findOne({email})
+router.post('/activate', userCtrl.activateEmail);
 
-    if(emailVld) {
-      return res.status(400).json({success: false, message: 'email already email!'});
-    }
+router.post('/login', userCtrl.login);
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+router.post('/refresh_token', userCtrl.getAccessToken);
 
-    const newUser = new User({
-      username: username,
-      email: email,
-      password: hashedPassword,
-    });
+router.post('/forgot-password', userCtrl.forgotPassword);
 
-    const user = await newUser.save();
-    const accessToken = jwt.sign({userId: newUser._id}, process.env.ACCESS_TOKEN_SECRET)
-    res.status(200).json({success: true, message: 'user created successfully!', accessToken, user});
-  } catch (err) {
-    res.status(500).json({success: false, message: err})
-  }
-});
+router.post('/reset-password', auth, userCtrl.resetPassword);
 
-//LOGIN
-router.post("/login", async (req, res) => {
-  const {email, password} = req.body;
+router.get('/logout', userCtrl.logout);
 
-  if(!email || !password) {
-     return res.status(400).json({success: false, message: 'missing password and/or email!'});
-  }
-  try {
-    const user = await User.findOne({ email });
-    !user && res.status(400).json({success: false, message: 'incorrect password and/or email!'});
+// social login
+router.post('/google_login', userCtrl.googleLogin);
 
-    const passwordVld = await bcrypt.compare(req.body.password, user.password)
-    !passwordVld && res.status(400).json({success: false, message: 'incorrect password and/or email!'});
+router.post('/facebook_login', userCtrl.facebookLogin);
 
-    const accessToken = jwt.sign({userId: user._id}, process.env.ACCESS_TOKEN_SECRET)
-    res.status(200).json({success: true, message: 'login is successfully!', accessToken, user}, );
-  } catch (err) {
-    res.status(500).json({success: false, message: err})
-  }
-});
+
 
 module.exports = router;
